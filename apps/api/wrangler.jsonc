@@ -1,17 +1,19 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "giabao-portfolio",
+  "name": "portfolio",
   "main": "./src/index.ts",
   "compatibility_date": "2026-11-01",
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": [
+      "/api/*"
+    ],
   },
   // Cấu hình công khai (không chứa secret). Production mặc định APP_ENV="production" và cập nhật TURNSTILE_EXPECTED_HOSTNAME thành hostname *.workers.dev.
   // Local dev/test ghi đè qua apps/api/.dev.vars (gitignored, không deploy lên production).
   "vars": {
     "APP_ENV": "production",
-    "TURNSTILE_EXPECTED_HOSTNAME": "localhost",
+    "TURNSTILE_EXPECTED_HOSTNAME": "portfolio.nguyengiabao.workers.dev",
   },
   // Cloudflare Workers Rate Limiting binding: 5 request / 60 giây theo từng colo (eventual consistency)
   "ratelimits": [
@@ -29,7 +31,7 @@
     {
       "binding": "DB",
       "database_name": "giabao-portfolio-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "42d3b803-7d02-4d87-9266-b54b01bbfbfa",
       "migrations_dir": "../../db/migrations",
     },
   ],

@@ -7,6 +7,7 @@ import {
 import type { AppBindings } from "../env.ts";
 import { ApiError } from "../middleware/error-handler.ts";
 import { insertContactMessage } from "../services/contact-repository.ts";
+import { sendContactNotificationEmail } from "../services/email.ts";
 import { enforceContactRateLimit } from "../services/rate-limit.ts";
 import {
   extractCloudflareClientIp,
@@ -185,6 +186,13 @@ export function createContactRoute(deps: ContactRouteDependencies = {}) {
         "INTERNAL_ERROR",
         "Không thể lưu tin nhắn lúc này. Vui lòng thử lại sau.",
       );
+    }
+
+    // 11. Gửi thông báo qua Resend về Gmail cá nhân
+    try {
+      await sendContactNotificationEmail(c.env.RESEND_API_KEY, validation.data);
+    } catch {
+      console.error("[api] contact_email_exception");
     }
 
     const responseBody: ContactSuccessResponse = { ok: true };

@@ -488,8 +488,12 @@ export function ContactSection({
                     type="text"
                     name="website"
                     tabIndex={-1}
-                    autoComplete="off"
+                    autoComplete="new-password"
                     aria-hidden="true"
+                    readOnly
+                    onFocus={(event) => {
+                      event.currentTarget.readOnly = false;
+                    }}
                     value={formValues.website}
                     onChange={(event) => updateField("website", event.target.value)}
                   />
