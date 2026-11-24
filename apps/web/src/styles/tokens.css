@@ -1,0 +1,208 @@
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Light theme — White background, neutral gray surfaces, dark text, blue accent (WCAG AA) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+
+  --surface-primary: #f1f5f9;
+  --surface-elevated: #ffffff;
+  --surface-muted: #e2e8f0;
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+
+  --accent-primary: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-soft: rgba(29, 78, 216, 0.1);
+  --accent-contrast: #ffffff;
+
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --status-success: #15803d;
+  --status-success-soft: rgba(21, 128, 61, 0.1);
+  --status-warning: #b45309;
+  --status-warning-soft: rgba(180, 83, 9, 0.1);
+  --status-danger: #b91c1c;
+  --status-danger-soft: rgba(185, 28, 28, 0.1);
+
+  --focus-ring: #2563eb;
+
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.12), 0 4px 10px -4px rgba(15, 23, 42, 0.06);
+  --shadow-hover: 0 14px 32px -8px rgba(29, 78, 216, 0.14), 0 4px 12px -4px rgba(15, 23, 42, 0.08);
+  --glow-accent: rgba(37, 99, 235, 0.16);
+  --grid-line: rgba(29, 78, 216, 0.06);
+
+  --hero-gradient: linear-gradient(180deg, #f0f6ff 0%, #f8fbff 52%, #ffffff 100%);
+  --section-tinted-bg: linear-gradient(180deg, #f8fafc 0%, #f1f6fd 100%);
+  --section-projects-bg: linear-gradient(180deg, #f5f8ff 0%, #f8fafc 100%);
+  --section-contact-bg: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+
+  /* Motion tokens — Apple / Linear balanced system */
+  --motion-fast: 150ms;
+  --motion-normal: 200ms;
+  --motion-medium: 300ms;
+  --motion-reveal: 520ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+
+  /* Legacy aliases for backwards compatibility */
+  --duration-fast: var(--motion-fast);
+  --duration-normal: var(--motion-normal);
+  --duration-slow: var(--motion-medium);
+}
+
+.dark {
+  /* Dark theme — Deep navy background, elevated navy surfaces, readable light text, cyan/blue accent (WCAG AA) */
+  --bg-primary: #070d19;
+  --bg-secondary: #0c1527;
+
+  --surface-primary: #111c33;
+  --surface-elevated: #15223d;
+  --surface-muted: #0e182c;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --accent-primary: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --accent-soft: rgba(56, 189, 248, 0.14);
+  --accent-contrast: #06101f;
+
+  --border-subtle: #1e2d4a;
+  --border-strong: #334a73;
+
+  --status-success: #4ade80;
+  --status-success-soft: rgba(74, 222, 128, 0.14);
+  --status-warning: #fbbf24;
+  --status-warning-soft: rgba(251, 191, 36, 0.14);
+  --status-danger: #f87171;
+  --status-danger-soft: rgba(248, 113, 113, 0.14);
+
+  --focus-ring: #38bdf8;
+
+  --shadow-sm: 0 1px 2px 0 rgba(2, 6, 23, 0.45);
+  --shadow-md: 0 6px 16px -4px rgba(2, 6, 23, 0.55), 0 2px 6px -2px rgba(2, 6, 23, 0.4);
+  --shadow-lg: 0 16px 36px -8px rgba(2, 6, 23, 0.7), 0 6px 14px -4px rgba(2, 6, 23, 0.5);
+  --shadow-hover:
+    0 18px 40px -10px rgba(2, 6, 23, 0.78), 0 0 0 1px rgba(56, 189, 248, 0.18),
+    0 8px 24px -8px rgba(56, 189, 248, 0.14);
+  --glow-accent: rgba(56, 189, 248, 0.18);
+  --grid-line: rgba(56, 189, 248, 0.065);
+
+  --hero-gradient:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(30, 64, 175, 0.24) 0%, transparent 70%),
+    linear-gradient(180deg, #091225 0%, #070d19 100%);
+  --section-tinted-bg: linear-gradient(180deg, #0b1426 0%, #0d182d 100%);
+  --section-projects-bg: linear-gradient(180deg, #0a1324 0%, #0d1930 100%);
+  --section-contact-bg:
+    radial-gradient(ellipse 70% 60% at 50% 100%, rgba(29, 78, 216, 0.18) 0%, transparent 75%),
+    linear-gradient(180deg, #0b1426 0%, #081020 100%);
+}
+
+@theme inline {
+  /* Color tokens */
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+
+  --color-surface-primary: var(--surface-primary);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-muted: var(--surface-muted);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-contrast: var(--accent-contrast);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  --color-status-success: var(--status-success);
+  --color-status-success-soft: var(--status-success-soft);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-soft: var(--status-warning-soft);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-soft: var(--status-danger-soft);
+
+  --color-focus-ring: var(--focus-ring);
+
+  /* Typography tokens */
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+
+  --text-display: 2.5rem;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.025em;
+
+  --text-h1: 2rem;
+  --text-h1--line-height: 1.2;
+  --text-h1--letter-spacing: -0.02em;
+
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 1.25;
+  --text-h2--letter-spacing: -0.015em;
+
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.35;
+  --text-h3--letter-spacing: -0.01em;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.65;
+
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.55;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: 0.02em;
+
+  --text-code: 0.875rem;
+  --text-code--line-height: 1.5;
+
+  /* Spacing tokens */
+  --spacing-section-sm: 2.5rem;
+  --spacing-section-md: 4rem;
+  --spacing-section-lg: 5.5rem;
+
+  /* Border radius tokens */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+
+  /* Shadow tokens */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  /* Breakpoints */
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 90rem;
+
+  /* Container widths */
+  --container-sm: 42rem;
+  --container-md: 56rem;
+  --container-lg: 72rem;
+  --container-xl: 80rem;
+
+  /* Transition durations */
+  --default-transition-duration: 200ms;
+}

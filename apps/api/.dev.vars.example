@@ -1,0 +1,13 @@
+# Local development & E2E test variables for Wrangler / Miniflare (NEVER commit .dev.vars)
+# Copy to apps/api/.dev.vars for local testing with Cloudflare Turnstile dummy keys.
+# Production deploys ignore .dev.vars and default APP_ENV to "production".
+
+APP_ENV="development"
+
+# Cloudflare official dummy Turnstile secret key (always passes):
+# Returns hostname="example.com" and metadata.result_with_testing_key=true
+TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
+TURNSTILE_EXPECTED_HOSTNAME="example.com"
+
+# Local-only random salt for IP pseudonymization (never reuse in production)
+IP_HASH_SALT="replace-with-local-random-salt"

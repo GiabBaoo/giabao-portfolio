@@ -1,0 +1,261 @@
+/* Motion Design System — Keyframes, Entrance & Scroll-Reveal Utilities */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes blur-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes filter-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes locale-fade {
+  from {
+    opacity: 0.72;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes menu-slide-down {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes sql-line-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 3px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Entrance utilities (GPU-composited transform & opacity) */
+.animate-fade-up {
+  animation: fade-up var(--motion-reveal) var(--motion-ease-out) both;
+}
+
+.animate-blur-reveal {
+  animation: blur-reveal var(--motion-reveal) var(--motion-ease-out) both;
+}
+
+.animate-fade-in {
+  animation: fade-in var(--motion-medium) var(--motion-ease-out) both;
+}
+
+.animate-scale-in {
+  animation: scale-in var(--motion-reveal) var(--motion-ease-out) both;
+}
+
+.animate-filter-enter {
+  animation: filter-enter var(--motion-normal) var(--motion-ease-out) both;
+}
+
+.animate-locale-fade {
+  animation: locale-fade var(--motion-normal) var(--motion-ease-out) both;
+}
+
+.animate-menu-slide-down {
+  animation: menu-slide-down var(--motion-normal) var(--motion-ease-out) both;
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 1.05s steps(1, end) infinite;
+}
+
+.animate-sql-line {
+  animation: sql-line-reveal var(--motion-normal) var(--motion-ease-out) both;
+}
+
+/* Scroll reveal states — visible by default when JS/IO is absent */
+.reveal-element {
+  transition:
+    opacity var(--motion-reveal) var(--motion-ease-out),
+    transform var(--motion-reveal) var(--motion-ease-out);
+  will-change: opacity, transform;
+}
+
+.reveal-element[data-reveal-state="hidden"] {
+  opacity: 0;
+}
+
+.reveal-element[data-reveal-variant="fade-up"][data-reveal-state="hidden"] {
+  transform: translate3d(0, 18px, 0);
+}
+
+.reveal-element[data-reveal-variant="scale-up"][data-reveal-state="hidden"] {
+  transform: translate3d(0, 10px, 0) scale(0.975);
+}
+
+.reveal-element[data-reveal-state="visible"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  will-change: auto;
+}
+
+/* Timeline vertical rail progressive draw */
+.timeline-rail {
+  transform-origin: top center;
+  transition: transform 650ms var(--motion-ease-out);
+}
+
+.timeline-rail[data-rail-state="hidden"] {
+  transform: scaleY(0);
+}
+
+.timeline-rail[data-rail-state="visible"] {
+  transform: scaleY(1);
+}
+
+/* Timeline marker fade-in & subtle scale-in (no continuous pulse) */
+.timeline-marker {
+  transition:
+    opacity var(--motion-medium) var(--motion-ease-out),
+    transform var(--motion-medium) var(--motion-ease-spring);
+}
+
+.timeline-marker[data-marker-state="hidden"] {
+  opacity: 0;
+  transform: scale(0.65);
+}
+
+.timeline-marker[data-marker-state="visible"] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Pointer-capable hover elevations (disabled on touch devices) */
+.card-interactive {
+  transition:
+    transform var(--motion-normal) var(--motion-ease-out),
+    border-color var(--motion-normal) var(--motion-ease-out),
+    box-shadow var(--motion-normal) var(--motion-ease-out),
+    background-color var(--motion-normal) var(--motion-ease-out);
+}
+
+.badge-interactive {
+  transition:
+    transform var(--motion-fast) var(--motion-ease-out),
+    border-color var(--motion-fast) var(--motion-ease-out),
+    color var(--motion-fast) var(--motion-ease-out),
+    box-shadow var(--motion-fast) var(--motion-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-interactive:hover {
+    transform: translate3d(0, -5px, 0);
+    border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .badge-interactive:hover {
+    transform: translate3d(0, -1px, 0) scale(1.025);
+    border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-hover-lift:hover:not(:disabled) {
+    transform: translate3d(0, -1px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-element[data-reveal-state="hidden"],
+  .reveal-element[data-reveal-variant="fade-up"][data-reveal-state="hidden"],
+  .reveal-element[data-reveal-variant="scale-up"][data-reveal-state="hidden"] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .timeline-rail[data-rail-state="hidden"] {
+    transform: scaleY(1) !important;
+  }
+
+  .timeline-marker[data-marker-state="hidden"] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-blur-reveal {
+    filter: none !important;
+  }
+
+  .animate-cursor-blink {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  .card-interactive:hover,
+  .badge-interactive:hover,
+  .btn-hover-lift:hover {
+    transform: none !important;
+  }
+}
