@@ -4,6 +4,12 @@ import { HomePage } from "../pages/HomePage.tsx";
 import { RouteErrorPage } from "../pages/RouteErrorPage.tsx";
 import { LocaleLayout, RootRedirect } from "./layout/LocaleLayout.tsx";
 
+const AdminPage = lazy(() =>
+  import("../pages/AdminPage.tsx").then((module) => ({
+    default: module.AdminPage,
+  })),
+);
+
 const ProjectDetailPage = lazy(() =>
   import("../pages/ProjectDetailPage.tsx").then((module) => ({
     default: module.ProjectDetailPage,
@@ -22,6 +28,15 @@ export const routes: RouteObject[] = [
   {
     path: "/",
     element: <RootRedirect />,
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: "/admin",
+    element: (
+      <Suspense fallback={routeLoadingFallback}>
+        <AdminPage />
+      </Suspense>
+    ),
     errorElement: <RouteErrorPage />,
   },
   {

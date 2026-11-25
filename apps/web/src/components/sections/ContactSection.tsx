@@ -120,7 +120,10 @@ function mapApiErrorCodeToMessageKey(code: ApiErrorCode): keyof Messages["contac
     case "SERVICE_UNAVAILABLE":
       return "serviceUnavailable";
     case "NOT_FOUND":
+    case "UNAUTHORIZED":
+    case "FORBIDDEN":
     case "INTERNAL_ERROR":
+    default:
       return "internalError";
   }
 }

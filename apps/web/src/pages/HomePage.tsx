@@ -7,7 +7,7 @@ import { ExperienceSection } from "../components/sections/ExperienceSection.tsx"
 import { HeroSection } from "../components/sections/HeroSection.tsx";
 import { ProjectsSection } from "../components/sections/ProjectsSection.tsx";
 import { SkillsSection } from "../components/sections/SkillsSection.tsx";
-import { getPortfolioContent } from "../content/index.ts";
+import { usePortfolioData } from "../content/usePortfolioData.ts";
 
 const ContactSection = lazy(() =>
   import("../components/sections/ContactSection.tsx").then((module) => ({
@@ -29,7 +29,7 @@ function ContactSectionFallback({ label }: { label: string }) {
 export function HomePage() {
   const { locale, messages } = useI18n();
   const location = useLocation();
-  const content = getPortfolioContent(locale);
+  const content = usePortfolioData(locale);
   const currentTechnicalRole = content.experiences.find((exp) => exp.kind === "technical");
   const currentRoleLabel = currentTechnicalRole
     ? `${currentTechnicalRole.position} @ ${currentTechnicalRole.company}`

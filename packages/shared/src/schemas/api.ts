@@ -3,6 +3,8 @@ import { z } from "zod";
 
 export const API_ERROR_CODES = [
   "VALIDATION_ERROR",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
   "TURNSTILE_FAILED",
   "TURNSTILE_UNAVAILABLE",
   "RATE_LIMITED",

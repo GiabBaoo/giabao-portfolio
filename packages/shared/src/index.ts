@@ -33,3 +33,4 @@ export {
   type HealthResponse,
   type HealthStatus,
 } from "./schemas/health";
+export * from "./schemas/portfolio";

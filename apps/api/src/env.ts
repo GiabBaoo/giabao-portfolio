@@ -4,6 +4,7 @@ export interface RateLimiterBinding {
 
 export interface AppBindings {
   DB: D1Database;
+  MEDIA_BUCKET?: R2Bucket;
   APP_ENV?: string;
   RATE_LIMITER?: RateLimiterBinding;
   TURNSTILE_SECRET_KEY?: string;

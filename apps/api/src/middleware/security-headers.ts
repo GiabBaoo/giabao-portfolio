@@ -6,8 +6,19 @@ export const securityHeadersMiddleware: MiddlewareHandler<{
 }> = async (c, next) => {
   await next();
 
-  c.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
-  c.header("Cache-Control", "no-store");
+  const isMediaEndpoint = c.req.path.startsWith("/api/media/");
+
+  c.header(
+    "Content-Security-Policy",
+    isMediaEndpoint
+      ? "default-src 'self'; object-src 'self'; frame-ancestors 'none'"
+      : "default-src 'none'; frame-ancestors 'none'",
+  );
+
+  if (!c.res.headers.has("Cache-Control")) {
+    c.header("Cache-Control", "no-store");
+  }
+
   c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");

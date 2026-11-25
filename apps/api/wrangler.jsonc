@@ -35,4 +35,10 @@
       "migrations_dir": "../../db/migrations",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "giabao-portfolio-media"
+    }
+  ]
 }
