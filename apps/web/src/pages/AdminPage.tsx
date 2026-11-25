@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router";
 import type { MediaAssetInfo, PortfolioPublicResponse } from "@giabao-portfolio/shared";
 import {
@@ -13,6 +13,7 @@ import { invalidatePortfolioCache } from "../content/usePortfolioData.ts";
 import type { Locale } from "../i18n/index.ts";
 
 type AdminTab = "media" | "profile" | "items" | "json";
+const STORAGE_KEY = "giabao_portfolio_admin_token";
 
 function cloneDefaultContent(locale: Locale): PortfolioContent {
     return JSON.parse(JSON.stringify(getPortfolioContent(locale))) as PortfolioContent;
@@ -25,6 +26,16 @@ function formatFileSize(bytes: number): string {
 }
 
 export function AdminPage() {
+    const [adminToken, setAdminToken] = useState<string>(
+        () => window.sessionStorage.getItem(STORAGE_KEY) ?? "",
+    );
+    const [passwordInput, setPasswordInput] = useState("");
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authChecking, setAuthChecking] = useState<boolean>(
+        () => Boolean(window.sessionStorage.getItem(STORAGE_KEY)),
+    );
+    const [authError, setAuthError] = useState<string | null>(null);
+
     const [activeTab, setActiveTab] = useState<AdminTab>("media");
     const [locale, setLocale] = useState<Locale>("vi");
     const [drafts, setDrafts] = useState<Record<Locale, PortfolioContent>>(() => ({
@@ -46,7 +57,41 @@ export function AdminPage() {
 
     const currentContent = drafts[locale];
 
+    const verifyToken = useCallback(async (tokenToCheck: string): Promise<boolean> => {
+        try {
+            const res = await fetch("/api/admin/session", {
+                headers: { Authorization: `Bearer ${tokenToCheck}` },
+            });
+            return res.ok;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!adminToken) {
+            setAuthChecking(false);
+            return;
+        }
+        let active = true;
+        void verifyToken(adminToken).then((valid) => {
+            if (!active) return;
+            if (valid) {
+                setIsAuthenticated(true);
+            } else {
+                window.sessionStorage.removeItem(STORAGE_KEY);
+                setAdminToken("");
+                setIsAuthenticated(false);
+            }
+            setAuthChecking(false);
+        });
+        return () => {
+            active = false;
+        };
+    }, [adminToken, verifyToken]);
+
     const loadInitialData = useCallback(async () => {
+        if (!isAuthenticated) return;
         setLoading(true);
         try {
             const res = await fetch("/api/portfolio", { headers: { Accept: "application/json" } });
@@ -63,11 +108,38 @@ export function AdminPage() {
         } finally {
             setLoading(false);
         }
-    }, [locale]);
+    }, [isAuthenticated, locale]);
 
     useEffect(() => {
         void loadInitialData();
     }, [loadInitialData]);
+
+    const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const trimmed = passwordInput.trim();
+        if (!trimmed) return;
+
+        setAuthChecking(true);
+        setAuthError(null);
+        const valid = await verifyToken(trimmed);
+        setAuthChecking(false);
+
+        if (valid) {
+            window.sessionStorage.setItem(STORAGE_KEY, trimmed);
+            setAdminToken(trimmed);
+            setIsAuthenticated(true);
+            setPasswordInput("");
+        } else {
+            setAuthError("Mật khẩu quản trị không chính xác.");
+        }
+    };
+
+    const handleLogout = () => {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+        setAdminToken("");
+        setIsAuthenticated(false);
+        setNotice(null);
+    };
 
     const switchLocale = (nextLocale: Locale) => {
         setLocale(nextLocale);
@@ -97,6 +169,7 @@ export function AdminPage() {
 
             const res = await fetch("/api/admin/media", {
                 method: "POST",
+                headers: { Authorization: `Bearer ${adminToken}` },
                 body: formData,
             });
 
@@ -105,6 +178,11 @@ export function AdminPage() {
                 media?: MediaAssetInfo;
                 error?: { message?: string };
             };
+
+            if (res.status === 401) {
+                handleLogout();
+                return;
+            }
 
             if (!res.ok || !body.ok || !body.media) {
                 throw new Error(body.error?.message || "Tải tệp lên thất bại");
@@ -130,7 +208,14 @@ export function AdminPage() {
         setUploadingType(type);
         setNotice(null);
         try {
-            const res = await fetch(`/api/admin/media/${type}`, { method: "DELETE" });
+            const res = await fetch(`/api/admin/media/${type}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${adminToken}` },
+            });
+            if (res.status === 401) {
+                handleLogout();
+                return;
+            }
             if (!res.ok) {
                 throw new Error("Không thể xóa tệp tin");
             }
@@ -161,7 +246,6 @@ export function AdminPage() {
                 setDrafts((prev) => ({ ...prev, [locale]: payloadToSave }));
             }
 
-            // Chuẩn hóa trường proficiency để khớp schema Zod
             const normalizedPayload: PortfolioContent = {
                 ...payloadToSave,
                 skills: payloadToSave.skills.map((s) => ({
@@ -172,9 +256,17 @@ export function AdminPage() {
 
             const res = await fetch(`/api/admin/portfolio/${locale}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${adminToken}`,
+                },
                 body: JSON.stringify(normalizedPayload),
             });
+
+            if (res.status === 401) {
+                handleLogout();
+                return;
+            }
 
             const body = (await res.json()) as { ok?: boolean; error?: { message?: string } };
             if (!res.ok || !body.ok) {
@@ -202,9 +294,59 @@ export function AdminPage() {
         setJsonBuffer(JSON.stringify(fresh, null, 2));
         setNotice({
             kind: "success",
-            text: "Đã nạp lại dữ liệu gốc vào trình soạn thảo. Bấm 'Lưu thay đổi' để áp dụng lên web.",
+            text: "Đã nạp lại dữ liệu gốc vào trình soạn thảo. Bấm 'Lưu bản' để áp dụng lên web.",
         });
     };
+
+    if (!isAuthenticated) {
+        return (
+            <div className="bg-bg-primary text-text-primary flex min-h-screen items-center justify-center px-4">
+                <form
+                    onSubmit={(e) => void handleLoginSubmit(e)}
+                    className="border-border-subtle bg-surface-primary w-full max-w-md space-y-4 rounded-xl border p-6 shadow-sm"
+                >
+                    <div>
+                        <h1 className="text-lg font-semibold">Đăng nhập Portfolio CMS</h1>
+                        <p className="text-text-muted text-xs">
+                            Nhập mật khẩu quản trị (ADMIN_PASSWORD) để chỉnh sửa nội dung, ảnh đại diện và CV.
+                        </p>
+                    </div>
+
+                    {authError && (
+                        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+                            {authError}
+                        </div>
+                    )}
+
+                    <label className="block space-y-1 text-sm">
+                        <span className="font-medium">Mật khẩu quản trị</span>
+                        <input
+                            type="password"
+                            required
+                            autoFocus
+                            value={passwordInput}
+                            onChange={(e) => setPasswordInput(e.target.value)}
+                            placeholder="Nhập mật khẩu..."
+                            className="border-border-strong bg-bg-primary w-full rounded-md border px-3 py-2"
+                        />
+                    </label>
+
+                    <div className="flex items-center justify-between pt-1">
+                        <Link to="/vi" className="text-text-muted hover:text-text-primary text-xs underline">
+                            ← Quay về trang chủ
+                        </Link>
+                        <button
+                            type="submit"
+                            disabled={authChecking}
+                            className="bg-accent-primary text-accent-contrast hover:bg-accent-hover rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+                        >
+                            {authChecking ? "Đang kiểm tra..." : "Đăng nhập"}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-bg-primary text-text-primary min-h-screen pb-16">
@@ -243,6 +385,13 @@ export function AdminPage() {
                                 {saving ? "Đang lưu..." : `Lưu bản ${locale.toUpperCase()}`}
                             </button>
                         )}
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="border-border-strong text-text-secondary hover:text-text-primary rounded-md border px-3 py-1.5 text-sm font-medium"
+                        >
+                            Đăng xuất
+                        </button>
                     </div>
                 </div>
             </header>
@@ -251,8 +400,8 @@ export function AdminPage() {
                 {notice && (
                     <div
                         className={`rounded-lg border px-4 py-3 text-sm ${notice.kind === "success"
-                                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                                : "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300"
+                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                            : "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300"
                             }`}
                     >
                         {notice.text}
@@ -275,8 +424,8 @@ export function AdminPage() {
                                 type="button"
                                 onClick={() => setActiveTab(tabKey)}
                                 className={`rounded-md px-3.5 py-2 text-sm font-medium transition-colors ${activeTab === tabKey
-                                        ? "bg-accent-primary text-accent-contrast"
-                                        : "bg-surface-primary text-text-secondary hover:text-text-primary border-border-subtle border"
+                                    ? "bg-accent-primary text-accent-contrast"
+                                    : "bg-surface-primary text-text-secondary hover:text-text-primary border-border-subtle border"
                                     }`}
                             >
                                 {label}
@@ -294,8 +443,8 @@ export function AdminPage() {
                                         type="button"
                                         onClick={() => switchLocale(lang)}
                                         className={`rounded px-3 py-1 text-xs font-semibold uppercase ${locale === lang
-                                                ? "bg-accent-primary text-accent-contrast"
-                                                : "text-text-secondary hover:text-text-primary"
+                                            ? "bg-accent-primary text-accent-contrast"
+                                            : "text-text-secondary hover:text-text-primary"
                                             }`}
                                     >
                                         {lang}
@@ -313,7 +462,6 @@ export function AdminPage() {
                         {/* TAB 1: MEDIA UPLOAD (AVATAR & CV) */}
                         {activeTab === "media" && (
                             <div className="grid gap-6 md:grid-cols-2">
-                                {/* Avatar Card */}
                                 <section className="border-border-subtle bg-surface-primary space-y-4 rounded-xl border p-6">
                                     <div>
                                         <h2 className="text-base font-semibold">Ảnh đại diện cá nhân</h2>
@@ -370,7 +518,6 @@ export function AdminPage() {
                                     </div>
                                 </section>
 
-                                {/* CV PDF Card */}
                                 <section className="border-border-subtle bg-surface-primary space-y-4 rounded-xl border p-6">
                                     <div>
                                         <h2 className="text-base font-semibold">Tệp CV cá nhân (PDF)</h2>
@@ -634,7 +781,6 @@ export function AdminPage() {
                         {/* TAB 3: EXPERIENCES, PROJECTS & SKILLS */}
                         {activeTab === "items" && (
                             <div className="space-y-8">
-                                {/* Experiences */}
                                 <section className="border-border-subtle bg-surface-primary space-y-4 rounded-xl border p-6">
                                     <div className="flex items-center justify-between">
                                         <h2 className="text-base font-semibold">
@@ -777,7 +923,6 @@ export function AdminPage() {
                                     </div>
                                 </section>
 
-                                {/* Projects */}
                                 <section className="border-border-subtle bg-surface-primary space-y-4 rounded-xl border p-6">
                                     <div className="flex items-center justify-between">
                                         <h2 className="text-base font-semibold">
@@ -909,7 +1054,6 @@ export function AdminPage() {
                                     </div>
                                 </section>
 
-                                {/* Skills */}
                                 <section className="border-border-subtle bg-surface-primary space-y-4 rounded-xl border p-6">
                                     <div className="flex items-center justify-between">
                                         <h2 className="text-base font-semibold">

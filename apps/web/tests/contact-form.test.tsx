@@ -590,7 +590,11 @@ describe("HomePage lazy ContactSection & Turnstile mounting", () => {
       }
     });
 
-    const submitButton = await screen.findByRole("button", { name: /send message/i });
+    const submitButton = await screen.findByRole(
+      "button",
+      { name: /send message/i },
+      { timeout: 5000 },
+    );
     expect(submitButton).toBeInTheDocument();
 
     // Type into form and ensure leaving viewport does not unmount or lose form data

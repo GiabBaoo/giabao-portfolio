@@ -12,4 +12,5 @@ export interface AppBindings {
   TURNSTILE_EXPECTED_ACTION?: string;
   IP_HASH_SALT?: string;
   RESEND_API_KEY?: string;
+  ADMIN_PASSWORD?: string;
 }

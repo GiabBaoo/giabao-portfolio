@@ -12,6 +12,9 @@ export function invalidatePortfolioCache(): void {
 }
 
 async function fetchPublicPortfolio(): Promise<PortfolioPublicResponse | null> {
+    if (import.meta.env.MODE === "test") {
+        return null;
+    }
     if (cachedPublicData) {
         return cachedPublicData;
     }

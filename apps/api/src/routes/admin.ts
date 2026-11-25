@@ -12,6 +12,9 @@ export const adminRoute = new Hono<{ Bindings: AppBindings }>();
 
 adminRoute.use("*", adminAccessMiddleware);
 
+adminRoute.get("/session", (c) => {
+    return c.json({ ok: true }, 200);
+});
 // Cập nhật toàn bộ nội dung Portfolio theo ngôn ngữ (vi hoặc en)
 adminRoute.put("/portfolio/:locale", async (c) => {
     const locale = c.req.param("locale");
