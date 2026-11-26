@@ -10,6 +10,7 @@ import {
     type SkillCategory,
 } from "../content/index.ts";
 import { invalidatePortfolioCache } from "../content/usePortfolioData.ts";
+import { applyLinkedInImportToContent } from "../lib/linkedin-csv.ts";
 import type { Locale } from "../i18n/index.ts";
 
 type AdminTab = "media" | "profile" | "items" | "json";
@@ -19,6 +20,88 @@ function cloneDefaultContent(locale: Locale): PortfolioContent {
     return JSON.parse(JSON.stringify(getPortfolioContent(locale))) as PortfolioContent;
 }
 
+function safeReadSessionToken(): string {
+    try {
+        return window.sessionStorage.getItem(STORAGE_KEY) ?? "";
+    } catch {
+        return "";
+    }
+}
+
+function safeWriteSessionToken(token: string): void {
+    try {
+        window.sessionStorage.setItem(STORAGE_KEY, token);
+    } catch {
+        // Ignore storage errors in restricted environments
+    }
+}
+
+function safeRemoveSessionToken(): void {
+    try {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+        // Ignore storage errors in restricted environments
+    }
+}
+
+function normalizePortfolioPayload(content: PortfolioContent): PortfolioContent {
+    return {
+        ...content,
+        skills: content.skills.map((s) => ({
+            ...s,
+            proficiency: s.proficiency ?? null,
+        })),
+    };
+}
+
+function normalizeRepoUrl(url: string | null): string | null {
+    return url ? url.trim().replace(/\/+$/, "").toLowerCase() : null;
+}
+
+function normalizeProjectSlug(slug: string): string {
+    return slug.trim().toLowerCase();
+}
+
+export function mergeGitHubProjectsIntoList(
+    existingProjects: readonly Project[],
+    incomingProjects: readonly Project[],
+): Project[] {
+    const matchedIncomingIndexes = new Set<number>();
+
+    const updatedExisting = existingProjects.map((existing) => {
+        const existingUrl = normalizeRepoUrl(existing.repositoryUrl);
+        const existingSlug = normalizeProjectSlug(existing.slug);
+
+        const matchIdx = incomingProjects.findIndex((incoming, idx) => {
+            if (matchedIncomingIndexes.has(idx)) return false;
+            const incomingUrl = normalizeRepoUrl(incoming.repositoryUrl);
+            const incomingSlug = normalizeProjectSlug(incoming.slug);
+            if (existingUrl && incomingUrl && existingUrl === incomingUrl) return true;
+            if (existingSlug && incomingSlug && existingSlug === incomingSlug) return true;
+            return false;
+        });
+
+        if (matchIdx === -1) {
+            return existing;
+        }
+
+        const matched = incomingProjects[matchIdx]!;
+        matchedIncomingIndexes.add(matchIdx);
+        return {
+            ...existing,
+            name: matched.name,
+            description: matched.description,
+            technologies: matched.technologies,
+            features: matched.features,
+            demoUrl: matched.demoUrl,
+            repositoryUrl: matched.repositoryUrl ?? existing.repositoryUrl,
+        };
+    });
+
+    const newProjects = incomingProjects.filter((_, idx) => !matchedIncomingIndexes.has(idx));
+    return [...newProjects, ...updatedExisting].slice(0, 30);
+}
+
 function formatFileSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -26,14 +109,10 @@ function formatFileSize(bytes: number): string {
 }
 
 export function AdminPage() {
-    const [adminToken, setAdminToken] = useState<string>(
-        () => window.sessionStorage.getItem(STORAGE_KEY) ?? "",
-    );
+    const [adminToken, setAdminToken] = useState<string>(() => safeReadSessionToken());
     const [passwordInput, setPasswordInput] = useState("");
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [authChecking, setAuthChecking] = useState<boolean>(
-        () => Boolean(window.sessionStorage.getItem(STORAGE_KEY)),
-    );
+    const [authChecking, setAuthChecking] = useState<boolean>(() => Boolean(safeReadSessionToken()));
     const [authError, setAuthError] = useState<string | null>(null);
 
     const [activeTab, setActiveTab] = useState<AdminTab>("media");
@@ -52,6 +131,8 @@ export function AdminPage() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [syncingGithub, setSyncingGithub] = useState(false);
+    const [githubNotice, setGithubNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
     const [uploadingType, setUploadingType] = useState<"avatar" | "cv" | null>(null);
     const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
@@ -79,7 +160,7 @@ export function AdminPage() {
             if (valid) {
                 setIsAuthenticated(true);
             } else {
-                window.sessionStorage.removeItem(STORAGE_KEY);
+                safeRemoveSessionToken();
                 setAdminToken("");
                 setIsAuthenticated(false);
             }
@@ -100,7 +181,7 @@ export function AdminPage() {
                 const nextVi = data.contentByLocale.vi ?? cloneDefaultContent("vi");
                 const nextEn = data.contentByLocale.en ?? cloneDefaultContent("en");
                 setDrafts({ vi: nextVi, en: nextEn });
-                setJsonBuffer(JSON.stringify(locale === "vi" ? nextVi : nextEn, null, 2));
+                setJsonBuffer(JSON.stringify(nextVi, null, 2));
                 setMedia(data.media);
             }
         } catch {
@@ -108,7 +189,7 @@ export function AdminPage() {
         } finally {
             setLoading(false);
         }
-    }, [isAuthenticated, locale]);
+    }, [isAuthenticated]);
 
     useEffect(() => {
         void loadInitialData();
@@ -125,7 +206,7 @@ export function AdminPage() {
         setAuthChecking(false);
 
         if (valid) {
-            window.sessionStorage.setItem(STORAGE_KEY, trimmed);
+            safeWriteSessionToken(trimmed);
             setAdminToken(trimmed);
             setIsAuthenticated(true);
             setPasswordInput("");
@@ -135,16 +216,18 @@ export function AdminPage() {
     };
 
     const handleLogout = () => {
-        window.sessionStorage.removeItem(STORAGE_KEY);
+        safeRemoveSessionToken();
         setAdminToken("");
         setIsAuthenticated(false);
         setNotice(null);
+        setGithubNotice(null);
     };
 
     const switchLocale = (nextLocale: Locale) => {
         setLocale(nextLocale);
         setJsonBuffer(JSON.stringify(drafts[nextLocale], null, 2));
         setNotice(null);
+        setGithubNotice(null);
     };
 
     const updateCurrentDraft = (updater: (prev: PortfolioContent) => PortfolioContent) => {
@@ -239,45 +322,107 @@ export function AdminPage() {
         setSaving(true);
         setNotice(null);
         try {
-            let payloadToSave: PortfolioContent = currentContent;
+            let nextDrafts: Record<Locale, PortfolioContent> = drafts;
 
             if (activeTab === "json") {
-                payloadToSave = JSON.parse(jsonBuffer) as PortfolioContent;
-                setDrafts((prev) => ({ ...prev, [locale]: payloadToSave }));
+                const parsedJson = JSON.parse(jsonBuffer) as PortfolioContent;
+                nextDrafts = { ...drafts, [locale]: parsedJson };
+                setDrafts(nextDrafts);
             }
 
-            const normalizedPayload: PortfolioContent = {
-                ...payloadToSave,
-                skills: payloadToSave.skills.map((s) => ({
-                    ...s,
-                    proficiency: s.proficiency ?? null,
-                })),
-            };
+            const normalizedVi = normalizePortfolioPayload(nextDrafts.vi);
+            const normalizedEn = normalizePortfolioPayload(nextDrafts.en);
 
-            const res = await fetch(`/api/admin/portfolio/${locale}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${adminToken}`,
-                },
-                body: JSON.stringify(normalizedPayload),
-            });
+            if (locale === "vi") {
+                const viRes = await fetch("/api/admin/portfolio/vi", {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${adminToken}`,
+                    },
+                    body: JSON.stringify(normalizedVi),
+                });
 
-            if (res.status === 401) {
-                handleLogout();
-                return;
+                if (viRes.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                const viBody = (await viRes.json()) as {
+                    ok?: boolean;
+                    content?: PortfolioContent;
+                    translatedProjects?: Project[];
+                    error?: { message?: string };
+                };
+                if (!viRes.ok || !viBody.ok) {
+                    throw new Error(viBody.error?.message || "Lưu nội dung thất bại");
+                }
+
+                const translatedProjects = Array.isArray(viBody.translatedProjects)
+                    ? viBody.translatedProjects
+                    : normalizedVi.projects;
+                const syncedEn: PortfolioContent = {
+                    ...normalizedEn,
+                    projects: translatedProjects,
+                };
+
+                const enRes = await fetch("/api/admin/portfolio/en", {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${adminToken}`,
+                    },
+                    body: JSON.stringify(syncedEn),
+                });
+
+                if (enRes.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                const enBody = (await enRes.json()) as {
+                    ok?: boolean;
+                    error?: { message?: string };
+                };
+                if (!enRes.ok || !enBody.ok) {
+                    throw new Error(enBody.error?.message || "Lưu bản Tiếng Anh (EN) thất bại");
+                }
+
+                setDrafts((prev) => ({ ...prev, en: syncedEn }));
+                invalidatePortfolioCache();
+                setNotice({
+                    kind: "success",
+                    text: "Đã lưu đồng bộ cả 2 bản Tiếng Việt (VI) và Tiếng Anh (EN) lên D1!",
+                });
+            } else {
+                const enRes = await fetch("/api/admin/portfolio/en", {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${adminToken}`,
+                    },
+                    body: JSON.stringify(normalizedEn),
+                });
+
+                if (enRes.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                const enBody = (await enRes.json()) as {
+                    ok?: boolean;
+                    error?: { message?: string };
+                };
+                if (!enRes.ok || !enBody.ok) {
+                    throw new Error(enBody.error?.message || "Lưu nội dung thất bại");
+                }
+
+                invalidatePortfolioCache();
+                setNotice({
+                    kind: "success",
+                    text: "Đã lưu nội dung bản Tiếng Anh (EN) lên D1!",
+                });
             }
-
-            const body = (await res.json()) as { ok?: boolean; error?: { message?: string } };
-            if (!res.ok || !body.ok) {
-                throw new Error(body.error?.message || "Lưu nội dung thất bại");
-            }
-
-            invalidatePortfolioCache();
-            setNotice({
-                kind: "success",
-                text: `Đã lưu nội dung bản ${locale === "vi" ? "Tiếng Việt (VI)" : "Tiếng Anh (EN)"} lên D1!`,
-            });
         } catch (err) {
             setNotice({
                 kind: "error",
@@ -297,6 +442,146 @@ export function AdminPage() {
             text: "Đã nạp lại dữ liệu gốc vào trình soạn thảo. Bấm 'Lưu bản' để áp dụng lên web.",
         });
     };
+
+    const handleLinkedInCsvImport = async (event: ChangeEvent<HTMLInputElement>) => {
+        const selectedFiles = Array.from(event.target.files ?? []);
+        event.target.value = "";
+        if (selectedFiles.length === 0) return;
+
+        setNotice(null);
+        try {
+            const csvTexts = await Promise.all(selectedFiles.map((file) => file.text()));
+
+            const { content: mergedContent, summary } = applyLinkedInImportToContent(
+                currentContent,
+                csvTexts,
+            );
+            updateCurrentDraft(() => mergedContent);
+
+            const importedParts: string[] = [];
+            if (summary.profileUpdated) importedParts.push("hồ sơ cá nhân");
+            if (summary.educationUpdated) importedParts.push("học vấn");
+            if (summary.experiencesAdded > 0) importedParts.push(`${summary.experiencesAdded} kinh nghiệm`);
+            if (summary.skillsAdded > 0) importedParts.push(`${summary.skillsAdded} kỹ năng`);
+
+            if (importedParts.length === 0) {
+                setNotice({
+                    kind: "error",
+                    text: "Không có dữ liệu mới nào được nhập (tệp CSV không đúng định dạng LinkedIn hoặc các mục đã tồn tại).",
+                });
+                return;
+            }
+
+            setNotice({
+                kind: "success",
+                text: `Đã nhập từ LinkedIn CSV (${locale.toUpperCase()}): ${importedParts.join(", ")}. Bấm 'Lưu bản ${locale.toUpperCase()}' để áp dụng.`,
+            });
+        } catch (err) {
+            setNotice({
+                kind: "error",
+                text: err instanceof Error ? err.message : "Không thể đọc tệp CSV từ LinkedIn",
+            });
+        }
+    };
+
+    const handleSyncGitHub = async () => {
+        setSyncingGithub(true);
+        setNotice(null);
+        setGithubNotice(null);
+        try {
+            const res = await fetch("/api/admin/sync/github", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${adminToken}`,
+                },
+                body: JSON.stringify({ username: "GiabBaoo", includeForks: false }),
+            });
+
+            if (res.status === 401) {
+                handleLogout();
+                return;
+            }
+
+            let body: {
+                ok?: boolean;
+                projects?: Project[];
+                error?: { message?: string };
+            } = {};
+            try {
+                body = (await res.json()) as typeof body;
+            } catch {
+                body = {};
+            }
+
+            if (!res.ok || !body.ok || !Array.isArray(body.projects)) {
+                throw new Error(
+                    body.error?.message || `Đồng bộ dự án từ GitHub thất bại (HTTP ${res.status})`,
+                );
+            }
+
+            const syncedProjects = body.projects;
+            let baseDrafts = drafts;
+            if (activeTab === "json") {
+                try {
+                    const parsedJson = JSON.parse(jsonBuffer) as PortfolioContent;
+                    baseDrafts = { ...drafts, [locale]: parsedJson };
+                } catch {
+                    baseDrafts = drafts;
+                }
+            }
+
+            const nextVi: PortfolioContent = {
+                ...baseDrafts.vi,
+                projects: mergeGitHubProjectsIntoList(baseDrafts.vi.projects, syncedProjects),
+            };
+            const nextEn: PortfolioContent = {
+                ...baseDrafts.en,
+                projects: mergeGitHubProjectsIntoList(baseDrafts.en.projects, syncedProjects),
+            };
+
+            setDrafts({ vi: nextVi, en: nextEn });
+            setJsonBuffer(JSON.stringify(locale === "vi" ? nextVi : nextEn, null, 2));
+
+            const successNotice = {
+                kind: "success" as const,
+                text: `Đã đồng bộ ${syncedProjects.length} dự án từ GitHub (lấy từ README.md) cho cả 2 bản VI và EN. Bấm 'Lưu cả 2 bản (VI & EN)' để áp dụng.`,
+            };
+            setGithubNotice(successNotice);
+            setNotice(successNotice);
+        } catch (err) {
+            const errorNotice = {
+                kind: "error" as const,
+                text: err instanceof Error ? err.message : "Có lỗi xảy ra khi đồng bộ GitHub",
+            };
+            setGithubNotice(errorNotice);
+            setNotice(errorNotice);
+        } finally {
+            setSyncingGithub(false);
+        }
+    };
+
+    const renderLinkedInImportSection = () => (
+        <section className="border-border-subtle bg-surface-primary flex flex-wrap items-center justify-between gap-4 rounded-xl border p-5">
+            <div className="space-y-1">
+                <h2 className="text-sm font-semibold">Import từ LinkedIn CSV ({locale.toUpperCase()})</h2>
+                <p className="text-text-muted text-xs">
+                    Chọn cùng lúc nhiều tệp xuất từ LinkedIn (Profile.csv, Education.csv, Positions.csv, Skills.csv) để
+                    trộn vào bản nháp hiện tại.
+                </p>
+            </div>
+            <label className="bg-accent-primary text-accent-contrast hover:bg-accent-hover cursor-pointer rounded-md px-3.5 py-2 text-xs font-medium">
+                Chọn file CSV LinkedIn
+                <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => void handleLinkedInCsvImport(e)}
+                />
+            </label>
+        </section>
+    );
 
     if (!isAuthenticated) {
         return (
@@ -382,7 +667,11 @@ export function AdminPage() {
                                 onClick={() => void handleSaveContent()}
                                 className="bg-accent-primary text-accent-contrast hover:bg-accent-hover rounded-md px-4 py-1.5 text-sm font-medium shadow-sm disabled:opacity-50"
                             >
-                                {saving ? "Đang lưu..." : `Lưu bản ${locale.toUpperCase()}`}
+                                {saving
+                                    ? "Đang lưu..."
+                                    : locale === "vi"
+                                        ? "Lưu cả 2 bản (VI & EN)"
+                                        : "Lưu bản EN"}
                             </button>
                         )}
                         <button
@@ -582,6 +871,7 @@ export function AdminPage() {
                         {/* TAB 2: PROFILE & EDUCATION */}
                         {activeTab === "profile" && (
                             <div className="space-y-6">
+                                {renderLinkedInImportSection()}
                                 <section className="border-border-subtle bg-surface-primary space-y-4 rounded-xl border p-6">
                                     <h2 className="text-base font-semibold">
                                         Thông tin cá nhân ({locale.toUpperCase()})
@@ -781,6 +1071,7 @@ export function AdminPage() {
                         {/* TAB 3: EXPERIENCES, PROJECTS & SKILLS */}
                         {activeTab === "items" && (
                             <div className="space-y-8">
+                                {renderLinkedInImportSection()}
                                 <section className="border-border-subtle bg-surface-primary space-y-4 rounded-xl border p-6">
                                     <div className="flex items-center justify-between">
                                         <h2 className="text-base font-semibold">
@@ -924,38 +1215,60 @@ export function AdminPage() {
                                 </section>
 
                                 <section className="border-border-subtle bg-surface-primary space-y-4 rounded-xl border p-6">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
                                         <h2 className="text-base font-semibold">
                                             Dự án nổi bật ({currentContent.projects.length})
                                         </h2>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                updateCurrentDraft((c) => ({
-                                                    ...c,
-                                                    projects: [
-                                                        {
-                                                            id: `proj-${Date.now()}`,
-                                                            slug: `project-${Date.now()}`,
-                                                            name: "Tên dự án mới",
-                                                            description: "Mô tả tổng quan dự án",
-                                                            technologies: ["TypeScript", "SQL Server"],
-                                                            features: ["Tính năng chính 1"],
-                                                            role: "Backend / Database Developer",
-                                                            imageUrl: null,
-                                                            repositoryUrl: null,
-                                                            demoUrl: null,
-                                                            projectType: "personal",
-                                                        },
-                                                        ...c.projects,
-                                                    ],
-                                                }))
-                                            }
-                                            className="bg-accent-primary text-accent-contrast rounded-md px-3 py-1.5 text-xs font-medium"
-                                        >
-                                            + Thêm dự án
-                                        </button>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                disabled={syncingGithub}
+                                                onClick={() => void handleSyncGitHub()}
+                                                className="border-border-strong hover:bg-surface-muted rounded-md border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                                            >
+                                                {syncingGithub ? "Đang đồng bộ..." : "Đồng bộ từ GitHub (GiabBaoo)"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    updateCurrentDraft((c) => ({
+                                                        ...c,
+                                                        projects: [
+                                                            {
+                                                                id: `proj-${Date.now()}`,
+                                                                slug: `project-${Date.now()}`,
+                                                                name: "Tên dự án mới",
+                                                                description: "Mô tả tổng quan dự án",
+                                                                technologies: ["TypeScript", "SQL Server"],
+                                                                features: ["Tính năng chính 1"],
+                                                                role: "Backend / Database Developer",
+                                                                imageUrl: null,
+                                                                repositoryUrl: null,
+                                                                demoUrl: null,
+                                                                projectType: "personal",
+                                                            },
+                                                            ...c.projects,
+                                                        ],
+                                                    }))
+                                                }
+                                                className="bg-accent-primary text-accent-contrast rounded-md px-3 py-1.5 text-xs font-medium"
+                                            >
+                                                + Thêm dự án
+                                            </button>
+                                        </div>
                                     </div>
+
+                                    {githubNotice && (
+                                        <div
+                                            role={githubNotice.kind === "error" ? "alert" : "status"}
+                                            className={`rounded-lg border px-4 py-2.5 text-xs ${githubNotice.kind === "success"
+                                                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                                : "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300"
+                                                }`}
+                                        >
+                                            {githubNotice.text}
+                                        </div>
+                                    )}
 
                                     <div className="space-y-4">
                                         {currentContent.projects.map((proj, idx) => (

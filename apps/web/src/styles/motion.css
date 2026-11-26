@@ -211,12 +211,14 @@
 @media (hover: hover) and (pointer: fine) {
   .card-interactive:hover {
     transform: translate3d(0, -5px, 0);
+    border-color: var(--accent-border-hover);
     border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
     box-shadow: var(--shadow-hover);
   }
 
   .badge-interactive:hover {
     transform: translate3d(0, -1px, 0) scale(1.025);
+    border-color: var(--accent-border-strong);
     border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent);
     color: var(--text-primary);
     box-shadow: var(--shadow-sm);

@@ -13,4 +13,5 @@ export interface AppBindings {
   IP_HASH_SALT?: string;
   RESEND_API_KEY?: string;
   ADMIN_PASSWORD?: string;
+  GITHUB_TOKEN?: string;
 }

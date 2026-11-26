@@ -8,6 +8,7 @@ import { HeroSection } from "../components/sections/HeroSection.tsx";
 import { ProjectsSection } from "../components/sections/ProjectsSection.tsx";
 import { SkillsSection } from "../components/sections/SkillsSection.tsx";
 import { usePortfolioData } from "../content/usePortfolioData.ts";
+import { supportsIntersectionObserver } from "../lib/browser-support.ts";
 
 const ContactSection = lazy(() =>
   import("../components/sections/ContactSection.tsx").then((module) => ({
@@ -37,7 +38,7 @@ export function HomePage() {
 
   const contactTriggerRef = useRef<HTMLDivElement | null>(null);
   const [shouldMountContact, setShouldMountContact] = useState(
-    () => location.hash === "#contact" || typeof IntersectionObserver === "undefined",
+    () => location.hash === "#contact" || !supportsIntersectionObserver(),
   );
 
   // Latch permanently when navigating to #contact so form state is never lost on hash changes
@@ -59,23 +60,32 @@ export function HomePage() {
     window.addEventListener("hashchange", handleHashChange);
 
     const target = contactTriggerRef.current;
-    if (!target || typeof IntersectionObserver === "undefined") {
+    if (!target || !supportsIntersectionObserver()) {
+      setShouldMountContact(true);
       return () => {
         window.removeEventListener("hashchange", handleHashChange);
       };
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setShouldMountContact(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "300px 0px" },
-    );
+    let observer: IntersectionObserver;
+    try {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            setShouldMountContact(true);
+            observer.disconnect();
+          }
+        },
+        { rootMargin: "300px 0px" },
+      );
 
-    observer.observe(target);
+      observer.observe(target);
+    } catch {
+      setShouldMountContact(true);
+      return () => {
+        window.removeEventListener("hashchange", handleHashChange);
+      };
+    }
 
     return () => {
       window.removeEventListener("hashchange", handleHashChange);

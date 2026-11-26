@@ -1,60 +1,67 @@
 # Gia Bao Portfolio
 
-Dự án Monorepo xây dựng trang web Portfolio cá nhân sử dụng **React + TypeScript + Vite + Tailwind CSS + React Router** cho Frontend, **Hono** cho Backend API và triển khai thống nhất trên một **Cloudflare Worker** duy nhất với **Workers Static Assets** và **Cloudflare D1**.
+A monorepo personal portfolio web application built with **React + TypeScript + Vite + Tailwind CSS + React Router** on the frontend, **Hono** for the backend API, and deployed as a single unified **Cloudflare Worker** using **Workers Static Assets**, **Cloudflare D1**, and **Cloudflare R2**.
 
-> Trạng thái hiện tại: **Stage 6 – Integration, Testing & Hardening (đã hoàn tất triển khai kỹ thuật & kiểm thử tự động; chờ chạy kiểm toán Lighthouse/axe trên trình duyệt để chốt cổng phê duyệt trước Stage 7)**.
+## Features
 
-## Cấu trúc Monorepo
+- **Bilingual & Themed Frontend**: English / Vietnamese (`en` / `vi`) localization and light/dark theme support with legacy browser fallback.
+- **Portfolio CMS (`/admin`)**: Password-protected (Bearer token) admin dashboard for managing profile content, projects, experience, and media, including GitHub repository sync and LinkedIn CSV import.
+- **Media Storage**: Image/media upload and serving via **Cloudflare R2** (`MEDIA_BUCKET`).
+- **Contact Form & Security**: Persists submissions in **Cloudflare D1**, protected by **Cloudflare Turnstile** verification, **Workers Rate Limiting**, and **Resend** email notifications.
+
+## Monorepo Structure
 
 ```text
 giabao-portfolio/
 ├── apps/
 │   ├── web/            # React SPA (Vite, Tailwind CSS, React Router, @cloudflare/vite-plugin)
-│   └── api/            # Hono API Worker (wrangler.jsonc, /api/health, Vitest Workers)
+│   └── api/            # Hono API Worker (wrangler.jsonc, /api/* routes, Vitest Workers)
 ├── packages/
-│   └── shared/         # Zod schemas & TypeScript types dùng chung
+│   └── shared/         # Shared Zod schemas & TypeScript types
 ├── db/
-│   └── migrations/     # SQL migrations cho Cloudflare D1 (0001_create_contact_messages.sql)
-├── docs/               # Bộ tài liệu yêu cầu, nội dung, kiến trúc, lộ trình & ADR
+│   └── migrations/     # Cloudflare D1 SQL migrations (contact_messages, portfolio_cms)
+├── docs/               # Requirements, content inventory, architecture, roadmap & ADRs
 ├── eslint.config.js
 ├── tsconfig.base.json
 ├── pnpm-workspace.yaml
 └── package.json
 ```
 
-## Yêu cầu môi trường
+## Prerequisites
 
-- **Node.js**: >= 22 LTS (xem `.nvmrc`)
-- **pnpm**: >= 10
+- **Node.js**: `>= 22 LTS` (see `.nvmrc`)
+- **pnpm**: `>= 10`
 
-## Cài đặt & Phát triển cục bộ
+## Installation & Local Development
 
 ```bash
-# Cài đặt toàn bộ dependencies
+# Install all workspace dependencies
 pnpm install
 
-# Chạy đồng thời Frontend (React SPA) và Backend API (/api/*) trên Cloudflare Workers runtime
+# Run Frontend (React SPA) and Backend API (/api/*) together on the Cloudflare Workers runtime
 pnpm dev
 ```
 
-Sau khi khởi động `pnpm dev`:
+Once `pnpm dev` is running:
 
-- Giao diện SPA: `http://localhost:5173/`
-- API Health check: `http://localhost:5173/api/health`
+- SPA Frontend: `http://localhost:5173/`
+- API Health Check: `http://localhost:5173/api/health`
 
-## Các lệnh chính (Root Scripts)
+For local API secrets (such as `ADMIN_PASSWORD`, `TURNSTILE_SECRET_KEY`, `IP_HASH_SALT`, `RESEND_API_KEY`, and `GITHUB_TOKEN`), configure `apps/api/.dev.vars` (gitignored). See [`docs/06-contact-security-setup.md`](./docs/06-contact-security-setup.md) for details.
 
-| Lệnh                | Mô tả                                                                                           |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| `pnpm dev`          | Khởi chạy dev server cục bộ tích hợp Cloudflare Vite Plugin (SPA + Worker API)                  |
-| `pnpm build`        | Build `packages/shared`, React SPA và Worker bundle                                             |
-| `pnpm preview`      | Xem trước bản build production trong môi trường Workers cục bộ                                  |
-| `pnpm lint`         | Kiểm tra chất lượng mã nguồn bằng ESLint                                                        |
-| `pnpm typecheck`    | Kiểm tra kiểu dữ liệu TypeScript toàn bộ workspace                                              |
-| `pnpm test`         | Chạy unit/component/integration tests (`shared`, `web`, `api` trên Workers runtime) bằng Vitest |
-| `pnpm format`       | Tự động định dạng mã nguồn bằng Prettier                                                        |
-| `pnpm format:check` | Kiểm tra định dạng mã nguồn bằng Prettier                                                       |
+## Root Scripts
 
-## Tài liệu dự án
+| Command             | Description                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------- |
+| `pnpm dev`          | Start the local dev server with Cloudflare Vite Plugin (SPA + Worker API)                    |
+| `pnpm build`        | Build `packages/shared`, the React SPA, and the Worker bundle                                |
+| `pnpm preview`      | Preview the production build locally in the Workers runtime                                  |
+| `pnpm lint`         | Run ESLint across the repository                                                             |
+| `pnpm typecheck`    | Run TypeScript type checking across all workspace packages                                   |
+| `pnpm test`         | Run unit, component, and integration tests (`shared`, `web`, `api` on Workers) with Vitest   |
+| `pnpm format`       | Format source files with Prettier                                                            |
+| `pnpm format:check` | Check source formatting with Prettier                                                        |
 
-Xem thư mục [`docs/`](./docs/) để theo dõi đầy đủ yêu cầu, kiểm kê nội dung, kiến trúc, lộ trình phát triển và nhật ký quyết định kỹ thuật (ADR).
+## Documentation
+
+See the [`docs/`](./docs/) directory for full project documentation, including requirements, content inventory, architecture proposals, development roadmap, security setup, and ADRs.

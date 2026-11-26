@@ -66,6 +66,6 @@ portfolioRoute.get("/", async (c) => {
         media,
     };
 
-    c.header("Cache-Control", "no-store");
+    c.header("Cache-Control", "no-store, no-cache, must-revalidate");
     return c.json(payload, 200);
 });

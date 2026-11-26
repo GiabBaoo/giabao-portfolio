@@ -89,4 +89,52 @@ describe("ThemeProvider & ThemeToggle", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
     expect(document.documentElement.dataset.theme).toBe("light");
   });
+
+  it("supports legacy MediaQueryList addListener/removeListener without addEventListener", () => {
+    let matches = false;
+    const listeners = new Set<(event: MediaQueryListEvent) => void>();
+    const addListener = vi.fn((listener: (event: MediaQueryListEvent) => void) => {
+      listeners.add(listener);
+    });
+    const removeListener = vi.fn((listener: (event: MediaQueryListEvent) => void) => {
+      listeners.delete(listener);
+    });
+
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        get matches() {
+          return matches;
+        },
+        media: "(prefers-color-scheme: dark)",
+        onchange: null,
+        addListener,
+        removeListener,
+      })),
+    );
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={["/en"]}>
+        <ThemeProvider>
+          <I18nProvider locale="en">
+            <ThemeToggle />
+          </I18nProvider>
+        </ThemeProvider>
+      </MemoryRouter>,
+    );
+
+    expect(addListener).toHaveBeenCalled();
+    expect(document.documentElement.dataset.theme).toBe("light");
+
+    act(() => {
+      matches = true;
+      for (const listener of listeners) {
+        listener({ matches: true } as MediaQueryListEvent);
+      }
+    });
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    unmount();
+    expect(removeListener).toHaveBeenCalled();
+  });
 });

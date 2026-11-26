@@ -38,10 +38,14 @@ export function BackToTopButton() {
   }, []);
 
   const handleClick = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-    });
+    try {
+      window.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+      });
+    } catch {
+      window.scrollTo(0, 0);
+    }
   };
 
   return (

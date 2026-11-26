@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { supportsIntersectionObserver } from "./browser-support.ts";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion.ts";
 
 interface UseInViewOnceOptions {
@@ -16,7 +17,7 @@ export function useInViewOnce<T extends HTMLElement = HTMLDivElement>(
   const { threshold = 0.12, rootMargin = "0px 0px -36px 0px" } = options;
   const ref = useRef<T | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
-  const hasObserver = typeof window !== "undefined" && typeof IntersectionObserver !== "undefined";
+  const hasObserver = supportsIntersectionObserver();
 
   const [isInView, setIsInView] = useState<boolean>(() => !hasObserver || prefersReducedMotion);
 
@@ -30,20 +31,27 @@ export function useInViewOnce<T extends HTMLElement = HTMLDivElement>(
       return;
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setIsInView(true);
-            observer.disconnect();
-            break;
+    let observer: IntersectionObserver;
+    try {
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              setIsInView(true);
+              observer.disconnect();
+              break;
+            }
           }
-        }
-      },
-      { threshold, rootMargin },
-    );
+        },
+        { threshold, rootMargin },
+      );
 
-    observer.observe(element);
+      observer.observe(element);
+    } catch {
+      setIsInView(true);
+      return;
+    }
+
     return () => {
       observer.disconnect();
     };

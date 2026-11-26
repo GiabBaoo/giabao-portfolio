@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supportsIntersectionObserver } from "./browser-support.ts";
 
 function getInitialHashSection(sectionIds: readonly string[], enabled: boolean): string | null {
   if (!enabled || typeof window === "undefined") {
@@ -27,7 +28,7 @@ export function useActiveSection(sectionIds: readonly string[], enabled = true):
 
     window.addEventListener("hashchange", handleHashChange);
 
-    if (typeof IntersectionObserver === "undefined") {
+    if (!supportsIntersectionObserver()) {
       return () => {
         window.removeEventListener("hashchange", handleHashChange);
       };
@@ -45,35 +46,42 @@ export function useActiveSection(sectionIds: readonly string[], enabled = true):
 
     const visibleRatios = new Map<string, number>();
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          visibleRatios.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
-        }
-
-        let bestId: string | null = null;
-        let bestRatio = 0;
-
-        for (const id of sectionIds) {
-          const ratio = visibleRatios.get(id) ?? 0;
-          if (ratio > bestRatio) {
-            bestRatio = ratio;
-            bestId = id;
+    let observer: IntersectionObserver;
+    try {
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            visibleRatios.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
           }
-        }
 
-        if (bestId) {
-          setActiveId(bestId);
-        }
-      },
-      {
-        rootMargin: "-20% 0px -60% 0px",
-        threshold: [0, 0.15, 0.35, 0.6],
-      },
-    );
+          let bestId: string | null = null;
+          let bestRatio = 0;
 
-    for (const el of elements) {
-      observer.observe(el);
+          for (const id of sectionIds) {
+            const ratio = visibleRatios.get(id) ?? 0;
+            if (ratio > bestRatio) {
+              bestRatio = ratio;
+              bestId = id;
+            }
+          }
+
+          if (bestId) {
+            setActiveId(bestId);
+          }
+        },
+        {
+          rootMargin: "-20% 0px -60% 0px",
+          threshold: [0, 0.15, 0.35, 0.6],
+        },
+      );
+
+      for (const el of elements) {
+        observer.observe(el);
+      }
+    } catch {
+      return () => {
+        window.removeEventListener("hashchange", handleHashChange);
+      };
     }
 
     return () => {

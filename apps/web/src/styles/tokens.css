@@ -35,6 +35,9 @@
   --shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.12), 0 4px 10px -4px rgba(15, 23, 42, 0.06);
   --shadow-hover: 0 14px 32px -8px rgba(29, 78, 216, 0.14), 0 4px 12px -4px rgba(15, 23, 42, 0.08);
   --glow-accent: rgba(37, 99, 235, 0.16);
+  --glow-accent-secondary: rgba(29, 78, 216, 0.11);
+  --accent-border-hover: rgba(29, 78, 216, 0.42);
+  --accent-border-strong: rgba(29, 78, 216, 0.5);
   --grid-line: rgba(29, 78, 216, 0.06);
 
   --hero-gradient: linear-gradient(180deg, #f0f6ff 0%, #f8fbff 52%, #ffffff 100%);
@@ -94,6 +97,9 @@
     0 18px 40px -10px rgba(2, 6, 23, 0.78), 0 0 0 1px rgba(56, 189, 248, 0.18),
     0 8px 24px -8px rgba(56, 189, 248, 0.14);
   --glow-accent: rgba(56, 189, 248, 0.18);
+  --glow-accent-secondary: rgba(56, 189, 248, 0.11);
+  --accent-border-hover: rgba(56, 189, 248, 0.42);
+  --accent-border-strong: rgba(56, 189, 248, 0.5);
   --grid-line: rgba(56, 189, 248, 0.065);
 
   --hero-gradient:

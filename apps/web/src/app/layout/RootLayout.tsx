@@ -130,7 +130,11 @@ export function RootLayout() {
     const targetId = location.hash.replace(/^#/, "");
     const el = document.getElementById(targetId);
     if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
+      try {
+        el.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
+      } catch {
+        el.scrollIntoView();
+      }
     }
   }, [isHomeRoute, location.hash, location.key, prefersReducedMotion]);
 

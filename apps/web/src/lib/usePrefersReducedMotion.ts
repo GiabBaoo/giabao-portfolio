@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { subscribeMediaQuery } from "./browser-support.ts";
 
 function getInitialReducedMotion(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return false;
   }
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return Boolean(window.matchMedia("(prefers-reduced-motion: reduce)")?.matches);
 }
 
 export function usePrefersReducedMotion(): boolean {
@@ -17,14 +18,15 @@ export function usePrefersReducedMotion(): boolean {
     }
 
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (!mediaQuery) {
+      return;
+    }
+
     const handleChange = (event: MediaQueryListEvent) => {
       setPrefersReducedMotion(event.matches);
     };
 
-    mediaQuery.addEventListener("change", handleChange);
-    return () => {
-      mediaQuery.removeEventListener("change", handleChange);
-    };
+    return subscribeMediaQuery(mediaQuery, handleChange);
   }, []);
 
   return prefersReducedMotion;

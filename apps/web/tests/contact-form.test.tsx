@@ -629,4 +629,16 @@ describe("HomePage lazy ContactSection & Turnstile mounting", () => {
 
     expect(await screen.findByRole("button", { name: /send message/i })).toBeInTheDocument();
   });
+
+  it("mounts ContactSection immediately when IntersectionObserver is unavailable", async () => {
+    vi.stubGlobal("IntersectionObserver", undefined);
+    const memoryRouter = createMemoryRouter(routes, { initialEntries: ["/en"] });
+    render(
+      <ThemeProvider defaultTheme="dark">
+        <RouterProvider router={memoryRouter} />
+      </ThemeProvider>,
+    );
+
+    expect(await screen.findByRole("button", { name: /send message/i })).toBeInTheDocument();
+  });
 });

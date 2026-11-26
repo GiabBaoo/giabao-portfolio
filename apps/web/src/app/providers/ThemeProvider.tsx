@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { subscribeMediaQuery } from "../../lib/browser-support.ts";
 import {
   THEME_STORAGE_KEY,
   ThemeContext,
@@ -35,7 +36,7 @@ export function ThemeProvider({ children, defaultTheme }: ThemeProviderProps) {
     const prefersReducedMotion =
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      Boolean(window.matchMedia("(prefers-reduced-motion: reduce)")?.matches);
 
     if (prefersReducedMotion) {
       applyThemeToDocument(resolvedTheme);
@@ -61,14 +62,15 @@ export function ThemeProvider({ children, defaultTheme }: ThemeProviderProps) {
     }
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    if (!mediaQuery) {
+      return;
+    }
+
     const handleChange = (event: MediaQueryListEvent) => {
       setSystemTheme(event.matches ? "dark" : "light");
     };
 
-    mediaQuery.addEventListener("change", handleChange);
-    return () => {
-      mediaQuery.removeEventListener("change", handleChange);
-    };
+    return subscribeMediaQuery(mediaQuery, handleChange);
   }, []);
 
   const setTheme = useCallback((nextTheme: ThemePreference) => {
