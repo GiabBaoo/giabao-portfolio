@@ -4,8 +4,8 @@ A monorepo personal portfolio web application built with **React + TypeScript + 
 
 ## Features
 
-- **Bilingual & Themed Frontend**: English / Vietnamese (`en` / `vi`) localization and light/dark theme support with legacy browser fallback.
-- **Portfolio CMS (`/admin`)**: Password-protected (Bearer token) admin dashboard for managing profile content, projects, experience, and media, including GitHub repository sync and LinkedIn CSV import.
+- **Bilingual & Themed Frontend**: English (`/en`) default locale (root `/` and unprefixed fallback paths redirect to `/en`) with full English/Vietnamese (`/en` & `/vi`) switching and light/dark theme support with legacy browser fallback.
+- **Portfolio CMS (`/admin`)**: Password-protected (Bearer token) admin dashboard for managing profile content, projects, experience, and media, saving each locale (`VI` and `EN`) independently to Cloudflare D1, with GitHub repository sync and LinkedIn CSV import.
 - **Media Storage**: Image/media upload and serving via **Cloudflare R2** (`MEDIA_BUCKET`).
 - **Contact Form & Security**: Persists submissions in **Cloudflare D1**, protected by **Cloudflare Turnstile** verification, **Workers Rate Limiting**, and **Resend** email notifications.
 

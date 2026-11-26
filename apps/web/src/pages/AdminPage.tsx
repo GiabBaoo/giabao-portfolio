@@ -322,107 +322,43 @@ export function AdminPage() {
         setSaving(true);
         setNotice(null);
         try {
-            let nextDrafts: Record<Locale, PortfolioContent> = drafts;
+            let contentToSave = drafts[locale];
 
             if (activeTab === "json") {
                 const parsedJson = JSON.parse(jsonBuffer) as PortfolioContent;
-                nextDrafts = { ...drafts, [locale]: parsedJson };
-                setDrafts(nextDrafts);
+                contentToSave = parsedJson;
+                setDrafts((prev) => ({ ...prev, [locale]: parsedJson }));
             }
 
-            const normalizedVi = normalizePortfolioPayload(nextDrafts.vi);
-            const normalizedEn = normalizePortfolioPayload(nextDrafts.en);
+            const normalizedPayload = normalizePortfolioPayload(contentToSave);
 
-            if (locale === "vi") {
-                const viRes = await fetch("/api/admin/portfolio/vi", {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${adminToken}`,
-                    },
-                    body: JSON.stringify(normalizedVi),
-                });
+            const res = await fetch(`/api/admin/portfolio/${locale}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${adminToken}`,
+                },
+                body: JSON.stringify(normalizedPayload),
+            });
 
-                if (viRes.status === 401) {
-                    handleLogout();
-                    return;
-                }
-
-                const viBody = (await viRes.json()) as {
-                    ok?: boolean;
-                    content?: PortfolioContent;
-                    translatedProjects?: Project[];
-                    error?: { message?: string };
-                };
-                if (!viRes.ok || !viBody.ok) {
-                    throw new Error(viBody.error?.message || "Lưu nội dung thất bại");
-                }
-
-                const translatedProjects = Array.isArray(viBody.translatedProjects)
-                    ? viBody.translatedProjects
-                    : normalizedVi.projects;
-                const syncedEn: PortfolioContent = {
-                    ...normalizedEn,
-                    projects: translatedProjects,
-                };
-
-                const enRes = await fetch("/api/admin/portfolio/en", {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${adminToken}`,
-                    },
-                    body: JSON.stringify(syncedEn),
-                });
-
-                if (enRes.status === 401) {
-                    handleLogout();
-                    return;
-                }
-
-                const enBody = (await enRes.json()) as {
-                    ok?: boolean;
-                    error?: { message?: string };
-                };
-                if (!enRes.ok || !enBody.ok) {
-                    throw new Error(enBody.error?.message || "Lưu bản Tiếng Anh (EN) thất bại");
-                }
-
-                setDrafts((prev) => ({ ...prev, en: syncedEn }));
-                invalidatePortfolioCache();
-                setNotice({
-                    kind: "success",
-                    text: "Đã lưu đồng bộ cả 2 bản Tiếng Việt (VI) và Tiếng Anh (EN) lên D1!",
-                });
-            } else {
-                const enRes = await fetch("/api/admin/portfolio/en", {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${adminToken}`,
-                    },
-                    body: JSON.stringify(normalizedEn),
-                });
-
-                if (enRes.status === 401) {
-                    handleLogout();
-                    return;
-                }
-
-                const enBody = (await enRes.json()) as {
-                    ok?: boolean;
-                    error?: { message?: string };
-                };
-                if (!enRes.ok || !enBody.ok) {
-                    throw new Error(enBody.error?.message || "Lưu nội dung thất bại");
-                }
-
-                invalidatePortfolioCache();
-                setNotice({
-                    kind: "success",
-                    text: "Đã lưu nội dung bản Tiếng Anh (EN) lên D1!",
-                });
+            if (res.status === 401) {
+                handleLogout();
+                return;
             }
+
+            const body = (await res.json()) as {
+                ok?: boolean;
+                error?: { message?: string };
+            };
+            if (!res.ok || !body.ok) {
+                throw new Error(body.error?.message || "Lưu nội dung thất bại");
+            }
+
+            invalidatePortfolioCache();
+            setNotice({
+                kind: "success",
+                text: `Đã lưu nội dung bản ${locale === "vi" ? "Tiếng Việt (VI)" : "Tiếng Anh (EN)"} lên D1!`,
+            });
         } catch (err) {
             setNotice({
                 kind: "error",
@@ -545,7 +481,7 @@ export function AdminPage() {
 
             const successNotice = {
                 kind: "success" as const,
-                text: `Đã đồng bộ ${syncedProjects.length} dự án từ GitHub (lấy từ README.md) cho cả 2 bản VI và EN. Bấm 'Lưu cả 2 bản (VI & EN)' để áp dụng.`,
+                text: `Đã đồng bộ ${syncedProjects.length} dự án từ GitHub (lấy từ README.md) cho cả 2 bản VI và EN. Bấm 'Lưu bản ${locale.toUpperCase()}' để áp dụng.`,
             };
             setGithubNotice(successNotice);
             setNotice(successNotice);
@@ -617,7 +553,7 @@ export function AdminPage() {
                     </label>
 
                     <div className="flex items-center justify-between pt-1">
-                        <Link to="/vi" className="text-text-muted hover:text-text-primary text-xs underline">
+                        <Link to="/en" className="text-text-muted hover:text-text-primary text-xs underline">
                             ← Quay về trang chủ
                         </Link>
                         <button
@@ -670,7 +606,7 @@ export function AdminPage() {
                                 {saving
                                     ? "Đang lưu..."
                                     : locale === "vi"
-                                        ? "Lưu cả 2 bản (VI & EN)"
+                                        ? "Lưu bản VI"
                                         : "Lưu bản EN"}
                             </button>
                         )}

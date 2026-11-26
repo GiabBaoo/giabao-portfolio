@@ -99,4 +99,30 @@ describe("i18n dictionaries & bilingual routing", () => {
     expect(memoryRouter.state.location.pathname).toBe("/en");
     expect(document.documentElement.lang).toBe("en");
   });
+
+  it("redirects root and unprefixed fallback paths to /en by default even if localStorage has vi", () => {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, "vi");
+
+    const rootRouter = createMemoryRouter(routes, { initialEntries: ["/"] });
+    render(
+      <ThemeProvider defaultTheme="dark">
+        <RouterProvider router={rootRouter} />
+      </ThemeProvider>,
+    );
+
+    expect(rootRouter.state.location.pathname).toBe("/en");
+    expect(document.documentElement.lang).toBe("en");
+
+    cleanup();
+
+    const fallbackRouter = createMemoryRouter(routes, { initialEntries: ["/unknown/path"] });
+    render(
+      <ThemeProvider defaultTheme="dark">
+        <RouterProvider router={fallbackRouter} />
+      </ThemeProvider>,
+    );
+
+    expect(fallbackRouter.state.location.pathname).toBe("/en");
+    expect(document.documentElement.lang).toBe("en");
+  });
 });

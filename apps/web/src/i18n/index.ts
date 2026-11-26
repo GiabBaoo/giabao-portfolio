@@ -48,11 +48,6 @@ export function detectInitialLocale(): Locale {
   if (stored) {
     return stored;
   }
-  if (typeof navigator !== "undefined" && typeof navigator.language === "string") {
-    if (navigator.language.toLowerCase().startsWith("vi")) {
-      return "vi";
-    }
-  }
   return DEFAULT_LOCALE;
 }
 

@@ -62,7 +62,7 @@ describe("mergeGitHubProjectsIntoList", () => {
   });
 });
 
-describe("AdminPage GitHub dual-locale sync & synchronized VI->EN save", () => {
+describe("AdminPage GitHub dual-locale sync & per-locale save", () => {
   beforeEach(() => {
     window.sessionStorage.setItem("giabao_portfolio_admin_token", "test-token");
   });
@@ -73,7 +73,19 @@ describe("AdminPage GitHub dual-locale sync & synchronized VI->EN save", () => {
     vi.restoreAllMocks();
   });
 
-  it("syncs GitHub projects into both VI and EN drafts and saves both VI and EN when clicking save on VI tab", async () => {
+  it("renders back-to-home link pointing to /en on login screen", () => {
+    window.sessionStorage.clear();
+    render(
+      <MemoryRouter initialEntries={["/admin"]}>
+        <AdminPage />
+      </MemoryRouter>,
+    );
+
+    const homeLink = screen.getByRole("link", { name: /Quay về trang chủ/i });
+    expect(homeLink).toHaveAttribute("href", "/en");
+  });
+
+  it("syncs GitHub projects into both VI and EN drafts and saves only VI when clicking save on VI tab", async () => {
     const viContent = getPortfolioContent("vi");
     const enContent = getPortfolioContent("en");
 
@@ -161,31 +173,29 @@ describe("AdminPage GitHub dual-locale sync & synchronized VI->EN save", () => {
     await waitFor(() => {
       expect(
         screen.getAllByText(
-          "Đã đồng bộ 1 dự án từ GitHub (lấy từ README.md) cho cả 2 bản VI và EN. Bấm 'Lưu cả 2 bản (VI & EN)' để áp dụng.",
+          "Đã đồng bộ 1 dự án từ GitHub (lấy từ README.md) cho cả 2 bản VI và EN. Bấm 'Lưu bản VI' để áp dụng.",
         ).length,
       ).toBeGreaterThan(0);
     });
 
-    const saveBothButton = screen.getByRole("button", { name: "Lưu cả 2 bản (VI & EN)" });
-    fireEvent.click(saveBothButton);
+    const saveViButton = screen.getByRole("button", { name: "Lưu bản VI" });
+    fireEvent.click(saveViButton);
 
     await waitFor(() => {
       expect(
-        screen.getByText("Đã lưu đồng bộ cả 2 bản Tiếng Việt (VI) và Tiếng Anh (EN) lên D1!"),
+        screen.getByText("Đã lưu nội dung bản Tiếng Việt (VI) lên D1!"),
       ).toBeInTheDocument();
     });
 
     const putCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT");
     const putUrls = putCalls.map(([url]) => String(url));
-    expect(putUrls).toEqual(["/api/admin/portfolio/vi", "/api/admin/portfolio/en"]);
+    expect(putUrls).toEqual(["/api/admin/portfolio/vi"]);
 
-    for (const [, init] of putCalls) {
-      const sentPayload = JSON.parse(String(init?.body)) as { projects: Array<{ slug: string }> };
-      expect(sentPayload.projects[0]?.slug).toBe("med-sync-readme");
-    }
+    const sentPayload = JSON.parse(String(putCalls[0]?.[1]?.body)) as { projects: Array<{ slug: string }> };
+    expect(sentPayload.projects[0]?.slug).toBe("med-sync-readme");
   });
 
-  it("translates projects via VI save, syncs translatedProjects into EN save while keeping EN profile, and saves EN alone on EN tab", async () => {
+  it("saves VI and EN independently without cross-saving or overwriting EN draft on VI save", async () => {
     const viContent = getPortfolioContent("vi");
     const enContent = getPortfolioContent("en");
     const translatedProjects = [
@@ -260,32 +270,23 @@ describe("AdminPage GitHub dual-locale sync & synchronized VI->EN save", () => {
     const itemsTab = await screen.findByRole("button", { name: /3\. Kinh nghiệm, Dự án & Kỹ năng/i });
     fireEvent.click(itemsTab);
 
-    const saveBothButton = await screen.findByRole("button", { name: "Lưu cả 2 bản (VI & EN)" });
-    fireEvent.click(saveBothButton);
+    const saveViButton = await screen.findByRole("button", { name: "Lưu bản VI" });
+    fireEvent.click(saveViButton);
 
     await waitFor(() => {
       expect(
-        screen.getByText("Đã lưu đồng bộ cả 2 bản Tiếng Việt (VI) và Tiếng Anh (EN) lên D1!"),
+        screen.getByText("Đã lưu nội dung bản Tiếng Việt (VI) lên D1!"),
       ).toBeInTheDocument();
     });
 
     const putCallsAfterViSave = fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT");
-    expect(putCallsAfterViSave.map(([url]) => String(url))).toEqual([
-      "/api/admin/portfolio/vi",
-      "/api/admin/portfolio/en",
-    ]);
-    const syncedEnPayload = JSON.parse(String(putCallsAfterViSave[1]?.[1]?.body)) as {
-      profile: { summary: string };
-      projects: Array<{ name: string }>;
-    };
-    expect(syncedEnPayload.profile.summary).toBe(enContent.profile.summary);
-    expect(syncedEnPayload.projects[0]?.name).toBe("Translated HIS Reporting System");
+    expect(putCallsAfterViSave.map(([url]) => String(url))).toEqual(["/api/admin/portfolio/vi"]);
 
     const enTabButton = screen.getByRole("button", { name: /^en$/i });
     fireEvent.click(enTabButton);
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("Translated HIS Reporting System")).toBeInTheDocument();
+      expect(screen.queryByDisplayValue("Translated HIS Reporting System")).not.toBeInTheDocument();
     });
 
     const saveEnButton = screen.getByRole("button", { name: "Lưu bản EN" });
@@ -300,7 +301,6 @@ describe("AdminPage GitHub dual-locale sync & synchronized VI->EN save", () => {
       .map(([url]) => String(url));
     expect(allPutUrls).toEqual([
       "/api/admin/portfolio/vi",
-      "/api/admin/portfolio/en",
       "/api/admin/portfolio/en",
     ]);
   });
